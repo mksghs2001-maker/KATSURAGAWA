@@ -1,4 +1,4 @@
 import http from 'node:http';
 import {readFile} from 'node:fs/promises';
-const files={'/':'index.html','/index.html':'index.html','/style.css':'style.css','/app.js':'app.js','/game.js':'game.js','/artwork.png':'artwork.png'};
+const files={'/':'index.html','/index.html':'index.html','/style.css':'style.css','/app.js':'app.js','/game.js':'game.js','/artwork.png':'artwork.png','/manual.html':'manual.html'};
 http.createServer(async(req,res)=>{const file=files[new URL(req.url,'http://localhost').pathname];if(!file){res.writeHead(404);return res.end('Not found');}try{const data=await readFile(new URL(file,import.meta.url));res.setHeader('Content-Type',file.endsWith('.png')?'image/png':file.endsWith('.css')?'text/css':file.endsWith('.js')?'text/javascript':'text/html; charset=utf-8');res.end(data);}catch{res.writeHead(500);res.end('Server error');}}).listen(Number(process.env.PORT)||3000,'0.0.0.0',()=>console.log('Sengoku server listening on port '+(process.env.PORT||3000)));
