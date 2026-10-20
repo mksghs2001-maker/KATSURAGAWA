@@ -1,27 +1,33 @@
-import {lands,newGame,owned,canAttack,act,nextSeason,validSave} from './game.js';
-let state=newGame();const $=id=>document.getElementById(id);const NS='http://www.w3.org/2000/svg';
-// Stylized province mosaic, intentionally schematic rather than a historical boundary map.
-const shapes=[['510,35 596,45 625,100 567,139 499,100',557,78],['426,92 499,100 567,139 528,203 452,188',491,149],['567,139 625,100 668,170 638,241 564,228 528,203',601,180],['327,139 426,92 452,188 413,240 332,221',382,177],['332,221 413,240 452,188 480,255 431,300 354,283',402,255],['480,255 528,203 564,228 578,288 525,322 431,300',511,272],['265,94 327,100 327,139 332,221 276,216 244,162',289,151],['276,216 332,221 354,283 329,350 276,371 248,299',300,281],['564,228 638,241 625,284 578,288',601,260],['192,135 244,162 276,216 248,249 185,229 169,178',218,192],['131,223 185,229 248,249 248,299 183,320 128,282',186,270],['71,147 139,124 192,135 169,178 185,229 131,223 82,251 52,203',117,181]];
-function notice(t){$('notice').textContent=t;}
+import {lands,newGame,owned,officersAt,canAttack,act,nextSeason,validSave} from './game.js';
+let state=newGame();const $=id=>document.getElementById(id),NS='http://www.w3.org/2000/svg';
+const notice=t=>$('notice').textContent=t;
 function render(){
- $('date').textContent=`永禄 ${state.year-1559} 年　${['春','夏','秋','冬'][state.season]} / ${state.year}`;
- $('power').textContent=`領国 ${owned(state).length} / 12　行動 ${'◆'.repeat(state.ap)}${'◇'.repeat(3-state.ap)}`;
- $('territories').textContent='中部・畿内 十二国';$('map').replaceChildren();
- state.provinces.forEach((p,i)=>{const g=document.createElementNS(NS,'g');g.setAttribute('class',`region ${p.owner==='織田'?'own':''} ${state.selected===i?'selected':''}`);g.setAttribute('tabindex','0');g.setAttribute('role','button');g.setAttribute('aria-label',`${p.name} ${p.owner}領 兵${p.troops}`);g.setAttribute('aria-pressed',String(state.selected===i));const polygon=document.createElementNS(NS,'polygon');polygon.setAttribute('points',shapes[i][0]);g.append(polygon);for(const [text,dy,cl]of [[p.name,0,''],[p.owner,18,'map-clan']]){const t=document.createElementNS(NS,'text');t.setAttribute('x',shapes[i][1]);t.setAttribute('y',shapes[i][2]+dy);t.setAttribute('class',cl);t.textContent=text;g.append(t);}const select=()=>{state.selected=i;render();};g.addEventListener('click',select);g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select();}});$('map').append(g);});
- const p=state.provinces[state.selected];$('ownership').textContent=p.owner==='織田'?'自国':'他家領';$('province').textContent=p.name+'国';$('clan').textContent=p.owner+'家';$('province-note').textContent=p.owner==='織田'?'民を養い、兵を鍛え、天下を目指す。':'出陣で織田領に隣接する国を攻略できます。';
- $('stats').replaceChildren();for(const [label,key]of [['金','gold'],['兵糧','rice'],['兵力','troops'],['石高','farm'],['士気','morale']]){const div=document.createElement('div'),dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=p[key];div.append(dt,dd);$('stats').append(div);}
- $('tax').textContent=`現在 ${state.tax||40}％ ／ 重税は士気低下`;$('ap').textContent=`残 ${state.ap} 回`;document.querySelectorAll('[data-action]').forEach(b=>b.disabled=p.owner!=='織田'||state.ap===0||!!state.ended);$('attack').disabled=!state.ap||!!state.ended;$('next').disabled=!!state.ended;
- $('log').replaceChildren();state.log.slice(0,20).forEach(t=>{const li=document.createElement('li');li.textContent=t;$('log').append(li);});
- if(state.ended)notice(state.ended==='victory'?'天下統一、お見事！':'織田家は滅亡しました。「初めから」で再挑戦。');
+ $('date').textContent=`${state.year}年　${['春','夏','秋','冬'][state.season]}`;
+ $('power').textContent=`都市 ${owned(state).length} / ${lands.length}　命令 ${state.ap} / 3`;
+ $('map').replaceChildren();
+ for(let i=0;i<lands.length;i++)for(const j of lands[i][4])if(j>i){const l=document.createElementNS(NS,'line');for(const [k,v] of Object.entries({x1:lands[i][2],y1:lands[i][3],x2:lands[j][2],y2:lands[j][3],class:'road'}))l.setAttribute(k,v);$('map').append(l);}
+ state.provinces.forEach((p,i)=>{
+ const g=document.createElementNS(NS,'g');g.setAttribute('class',`city ${p.owner==='劉備'?'player':''} ${state.selected===i?'selected':''}`);g.setAttribute('tabindex','0');g.setAttribute('role','button');g.setAttribute('aria-label',`${p.name} ${p.owner} 兵${p.troops}`);g.setAttribute('aria-pressed',String(state.selected===i));
+ const rect=document.createElementNS(NS,'rect');for(const [k,v]of Object.entries({x:lands[i][2]-36,y:lands[i][3]-22,width:72,height:54,rx:3}))rect.setAttribute(k,v);g.append(rect);
+ for(const [label,dy,cl]of [[p.name,0,'city-name'],[p.owner,20,'city-owner']]){const t=document.createElementNS(NS,'text');t.setAttribute('x',lands[i][2]);t.setAttribute('y',lands[i][3]+dy);t.setAttribute('class',cl);t.textContent=label;g.append(t);}
+ const select=()=>{state.selected=i;render();};g.onclick=select;g.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select();}};$('map').append(g);
+ });
+ const p=state.provinces[state.selected];$('province').textContent=p.name;$('clan').textContent=p.owner+' 勢力';$('ownership').textContent=p.owner==='劉備'?'自勢力':'他勢力';
+ $('stats').replaceChildren();for(const [label,key]of [['金','gold'],['兵糧','rice'],['兵力','troops'],['農業','farm'],['士気','morale']]){const div=document.createElement('div');const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=p[key];div.append(dt,dd);$('stats').append(div);}
+ $('officers').replaceChildren();for(const o of officersAt(state,state.selected)){const row=document.createElement('p');row.textContent=`${o.name}　武 ${o.war}　知 ${o.int}　政 ${o.pol}`;$('officers').append(row);}if(!$('officers').childElementCount)$('officers').textContent='在城武将なし';
+ $('ap').textContent=`残 ${state.ap} 回`;$('tax').textContent=`現在 ${state.tax}％`;
+ document.querySelectorAll('[data-action]').forEach(b=>b.disabled=p.owner!=='劉備'||!state.ap||!!state.ended);$('attack').disabled=!state.ap||!!state.ended;$('next').disabled=!!state.ended;
+ $('log').replaceChildren();for(const t of state.log.slice(0,20)){const li=document.createElement('li');li.textContent=t;$('log').append(li);}
+ if(state.ended)notice(state.ended==='victory'?'天下統一！ 新たな太平の世が始まります。':'勢力が滅亡しました。「初めから」で再挑戦できます。');
 }
-function modal(title,paragraphs){$('dialog-content').replaceChildren();const h=document.createElement('h2');h.textContent=title;$('dialog-content').append(h);paragraphs.forEach(t=>{const p=document.createElement('p');p.textContent=t;$('dialog-content').append(p);});$('dialog').showModal();}
-document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>{const error=act(state,b.dataset.action);notice(error||'命令を実行しました。');render();});
-$('next').onclick=()=>{nextSeason(state);notice('新たな季節を迎えました。');render();};
-$('attack').onclick=()=>{const targets=lands.map((_,i)=>i).filter(i=>canAttack(state,i));modal('出陣先を選べ',['最も兵の多い隣接自国から出陣。兵30以上・兵糧30が必要。兵力と士気が勝敗を左右します。']);if(!targets.length){const p=document.createElement('p');p.textContent='攻められる隣国がありません。';$('dialog-content').append(p);}targets.forEach(i=>{const p=state.provinces[i],b=document.createElement('button');b.className='target';b.textContent=`${p.name}（${p.owner}家）　兵 ${p.troops} →`;b.onclick=()=>{const error=act(state,'attack',i);$('dialog').close();notice(error||'出陣しました。戦国日誌をご覧ください。');render();};$('dialog-content').append(b);});};
-$('save').onclick=()=>{try{localStorage.setItem('sengoku-save-v1',JSON.stringify(state));notice('このブラウザに記録しました。');}catch{notice('記録できません。ブラウザの保存設定をご確認ください。');}};
-$('load').onclick=()=>{try{const saved=JSON.parse(localStorage.getItem('sengoku-save-v1'));if(!validSave(saved))throw Error();state=saved;notice('記録を読み込みました。');render();}catch{notice('読み込める記録がありません。');}};
-$('reset').onclick=()=>{modal('新たな歴史を始める',['現在の進行を破棄し、1560年の尾張から再開します。保存済みの記録は残ります。']);const b=document.createElement('button');b.textContent='初めから始める';b.onclick=()=>{state=newGame();$('dialog').close();notice('新たな戦が始まります。');render();};$('dialog-content').append(b);};
-$('help').onclick=()=>modal('天下統一への道',['あなたは織田家の当主。十二国すべての統一が目標です。地図から国を選び、右側の評定で命令してください。','数字キー1〜8で命令、9で次の季節へ進めます。米相場は固定。税率60％は収入が増える代わりに毎季士気が10下がります。毎季の行動力は3。開墾は将来の税と秋の収穫を増やし、徴兵は兵力を、調練は士気を上げます。','出陣は織田領に隣接する敵国が対象。勝利すると兵の一部が占領地へ移ります。敗北すると兵を失います。','次の季節で税収・兵糧補給が発生します。敵も兵を増やし、手薄な領地を攻めます。全領地を失うと敗北です。','「記録する」で手動セーブ。「記録を読む」で再開できます。地図は簡略図で、史実の国境とは異なります。','PC-8801時代の雰囲気に着想を得たオリジナルゲームです。既存作品の移植・エミュレーターではありません。']);
+function modal(title,text){$('dialog-content').replaceChildren();const h=document.createElement('h2'),p=document.createElement('p');h.textContent=title;p.textContent=text;$('dialog-content').append(h,p);if(!$('dialog').open)$('dialog').showModal();}
+function execute(action,target){const error=act(state,action,target);notice(error||state.log[0]);render();}
+function targets(action,title,info,indices){modal(title,info);if(!indices.length){const p=document.createElement('p');p.textContent='対象となる都市がありません。';$('dialog-content').append(p);}for(const i of indices){const b=document.createElement('button');b.className='target';b.textContent=`${state.provinces[i].name} ／ ${state.provinces[i].owner} ／ 兵${state.provinces[i].troops}`;b.onclick=()=>{$('dialog').close();execute(action,i);};$('dialog-content').append(b);}}
+for(const b of document.querySelectorAll('[data-action]'))b.onclick=()=>{if(b.dataset.action==='move')targets('move','武将の赴任','選択都市の一覧で最後に表示される武将を移動します。命令1回。',lands.map((_,i)=>i).filter(i=>i!==state.selected&&state.provinces[i].owner==='劉備'));else execute(b.dataset.action);};
+$('attack').onclick=()=>targets('attack','出陣の評議','最も兵の多い隣接自都市から、武力が最大の武将が出陣します。兵40・兵糧50が必要。勝敗は兵力・武力・士気・乱数で決定。勝利時は指揮官が占領地へ赴任します。',lands.map((_,i)=>i).filter(i=>canAttack(state,i)));
+$('next').onclick=()=>{nextSeason(state);notice('税収・兵糧消費・敵勢力の行動が発生しました。');render();};
+$('save').onclick=()=>{try{localStorage.setItem('kanmei-save-v2',JSON.stringify(state));notice('このブラウザに記録しました。');}catch{notice('保存できません。ブラウザの保存設定をご確認ください。');}};
+$('load').onclick=()=>{try{const saved=JSON.parse(localStorage.getItem('kanmei-save-v2'));if(!validSave(saved))throw Error();state=saved;render();notice('記録を読み込みました。');}catch{notice('有効な三国志の記録がありません。');}};
+$('reset').onclick=()=>{modal('新たな歴史','現在の進行を破棄し、194年の徐州から再開します。保存記録は残ります。');const b=document.createElement('button');b.textContent='初めから始める';b.onclick=()=>{state=newGame();$('dialog').close();notice('徐州から、天下への第一歩。');render();};$('dialog-content').append(b);};
+$('help').onclick=()=>modal('乱世を治めるには','あなたは194年の劉備。十二都市の統一が目標です。地図で都市を選択し、毎季3回の命令を実行します。農業開発は政治能力が高い在城武将ほど効果が増えます。登用は金40で在野武将を1人迎えます。出陣では武力と士気が重要。敵都市を占領すると指揮官も移動します。赴任で武将を再配置しましょう。毎季税収が入り、秋には農業に応じて収穫。兵糧不足では兵が減り、敵は手薄な都市に侵攻します。保存は同じブラウザ・同じ接続先でのみ利用できます。地図・能力・歴史展開は独自の簡略モデルです。外交と戦術マップは今後の拡張対象です。');
 $('close').onclick=()=>$('dialog').close();render();
-
-document.addEventListener('keydown',e=>{if($('dialog').open||e.altKey||e.ctrlKey||e.metaKey)return;const actions={'1':'farm','2':'recruit','3':'train','5':'sell','6':'buy','7':'give','8':'tax'};if(actions[e.key])document.querySelector(`[data-action="${actions[e.key]}"]`).click();if(e.key==='4')$('attack').click();if(e.key==='9')$('next').click();});
